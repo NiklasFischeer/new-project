@@ -18,8 +18,7 @@ export function Sidebar() {
   return (
     <aside className="flex w-full flex-col border-r border-border/80 bg-card/70 p-4 backdrop-blur-md md:w-64">
       <div className="mb-8 rounded-xl border border-border/70 bg-gradient-to-br from-primary/15 to-transparent p-4">
-        <p className="font-display text-lg font-semibold">FL Outreach</p>
-        <p className="text-xs text-muted-foreground">Mini-CRM for federated pilots</p>
+        <p className="font-display text-lg font-semibold">Datapool</p>
       </div>
       <nav className="flex flex-1 flex-col gap-1">
         {navItems.map((item) => {
