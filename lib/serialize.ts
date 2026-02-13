@@ -1,7 +1,7 @@
 import { Lead, EmailDraft } from "@prisma/client";
 import { LeadWithDrafts } from "./types";
 
-type LeadWithRelations = Lead & { emailDrafts: EmailDraft[] };
+type LeadWithRelations = Lead & { emailDrafts?: EmailDraft[] };
 
 export function serializeLead(lead: LeadWithRelations): LeadWithDrafts {
   const customFieldValues =
@@ -24,7 +24,7 @@ export function serializeLead(lead: LeadWithRelations): LeadWithDrafts {
     nextFollowUpAt: lead.nextFollowUpAt?.toISOString() ?? null,
     createdAt: lead.createdAt.toISOString(),
     updatedAt: lead.updatedAt.toISOString(),
-    emailDrafts: lead.emailDrafts.map((draft) => ({
+    emailDrafts: (lead.emailDrafts ?? []).map((draft) => ({
       ...draft,
       createdAt: draft.createdAt.toISOString(),
     })),

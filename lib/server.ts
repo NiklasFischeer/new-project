@@ -33,6 +33,7 @@ export async function getLeads(params?: {
   query?: string;
   status?: string;
   cluster?: string;
+  includeDrafts?: boolean;
 }) {
   const andFilters: Prisma.LeadWhereInput[] = [];
 
@@ -59,17 +60,26 @@ export async function getLeads(params?: {
 
   const where: Prisma.LeadWhereInput = andFilters.length ? { AND: andFilters } : {};
 
-  return prisma.lead.findMany({
-    where,
-    orderBy: [{ priorityScore: "desc" }, { nextFollowUpAt: "asc" }, { companyName: "asc" }],
-    include: {
-      emailDrafts: {
-        orderBy: {
-          createdAt: "desc",
+  if (params?.includeDrafts) {
+    return prisma.lead.findMany({
+      where,
+      orderBy: [{ priorityScore: "desc" }, { nextFollowUpAt: "asc" }, { companyName: "asc" }],
+      include: {
+        emailDrafts: {
+          orderBy: {
+            createdAt: "desc",
+          },
         },
       },
-    },
+    });
+  }
+
+  const leads = await prisma.lead.findMany({
+    where,
+    orderBy: [{ priorityScore: "desc" }, { nextFollowUpAt: "asc" }, { companyName: "asc" }],
   });
+
+  return leads.map((lead) => ({ ...lead, emailDrafts: [] }));
 }
 
 export async function updateLeadComputedFields(leadId: string) {

@@ -55,16 +55,60 @@ export function LeadDetailDrawer({
 }: LeadDetailDrawerProps) {
   const [draftStyle, setDraftStyle] = useState<EmailStyle>("MEDIUM");
   const [working, setWorking] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [localLead, setLocalLead] = useState<LeadWithDrafts | null>(lead);
   const [associationText, setAssociationText] = useState("");
   const [dataTypeText, setDataTypeText] = useState("");
   const [newFieldName, setNewFieldName] = useState("");
+  const [hydratedLeadId, setHydratedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalLead(lead);
     setAssociationText((lead?.associationMemberships ?? []).join(", "));
     setDataTypeText((lead?.dataTypes ?? []).join(", "));
   }, [lead]);
+
+  useEffect(() => {
+    setHydratedLeadId(null);
+  }, [lead?.id]);
+
+  useEffect(() => {
+    if (!open || !lead?.id) return;
+    if (hydratedLeadId === lead.id) return;
+    const leadId = lead.id;
+
+    let cancelled = false;
+
+    async function hydrateLeadDetail() {
+      setLoadingDetail(true);
+      const response = await fetch(`/api/leads/${leadId}`);
+
+      if (!response.ok) {
+        if (!cancelled) {
+          setHydratedLeadId(leadId);
+          setLoadingDetail(false);
+        }
+        return;
+      }
+
+      const data = (await response.json()) as { lead: LeadWithDrafts };
+
+      if (!cancelled) {
+        setLocalLead(data.lead);
+        setAssociationText(data.lead.associationMemberships.join(", "));
+        setDataTypeText(data.lead.dataTypes.join(", "));
+        setHydratedLeadId(leadId);
+        setLoadingDetail(false);
+        onLeadUpdated(data.lead);
+      }
+    }
+
+    void hydrateLeadDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, lead?.id, hydratedLeadId]);
 
   const scorePreview = useMemo(() => {
     if (!localLead) return { score: 0, label: 1 as const };
@@ -246,6 +290,7 @@ export function LeadDetailDrawer({
           <StatusBadge status={localLead.status} />
           <ClusterBadge cluster={effectiveCluster} />
           <PriorityBadge score={scorePreview.score} label={scorePreview.label} />
+          {loadingDetail ? <p className="text-xs text-muted-foreground">Loading latest details...</p> : null}
         </div>
 
         <section className="grid gap-3 rounded-lg border border-border p-4">

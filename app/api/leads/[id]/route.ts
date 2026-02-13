@@ -1,8 +1,19 @@
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { patchLead } from "@/lib/server";
+import { getLeadById, patchLead } from "@/lib/server";
 import { serializeLead } from "@/lib/serialize";
 import { prisma } from "@/lib/prisma";
+
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const lead = await getLeadById(id);
+
+  if (!lead) {
+    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ lead: serializeLead(lead) });
+}
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
