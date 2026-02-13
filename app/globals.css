@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 40% 98%;
+  --foreground: 214 38% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 214 38% 12%;
+  --primary: 186 89% 37%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 27% 93%;
+  --secondary-foreground: 214 38% 12%;
+  --muted: 210 24% 91%;
+  --muted-foreground: 215 16% 38%;
+  --accent: 170 47% 88%;
+  --accent-foreground: 214 38% 12%;
+  --border: 214 18% 85%;
+  --input: 214 18% 85%;
+  --ring: 186 89% 37%;
+  --radius: 0.8rem;
+}
+
+.dark {
+  --background: 218 35% 9%;
+  --foreground: 210 40% 96%;
+  --card: 220 29% 12%;
+  --card-foreground: 210 40% 96%;
+  --primary: 186 77% 46%;
+  --primary-foreground: 218 35% 9%;
+  --secondary: 218 24% 18%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 218 24% 18%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 210 37% 20%;
+  --accent-foreground: 210 40% 96%;
+  --border: 218 20% 25%;
+  --input: 218 20% 25%;
+  --ring: 186 77% 46%;
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply min-h-screen bg-background text-foreground antialiased;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(5, 150, 105, 0.15), transparent 26%),
+    radial-gradient(circle at 80% 0%, rgba(6, 182, 212, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+}
+
+.dark body {
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(20, 184, 166, 0.16), transparent 24%),
+    radial-gradient(circle at 85% 0%, rgba(6, 182, 212, 0.14), transparent 24%),
+    linear-gradient(180deg, rgba(13, 20, 35, 0.6), rgba(13, 20, 35, 0));
+}

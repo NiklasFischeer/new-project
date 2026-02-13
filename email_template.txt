@@ -1,0 +1,17 @@
+Betreff: Idee fuer {company}
+
+Hallo {name},
+
+ich habe gesehen, dass {company} im Bereich "{industry}" aktiv ist.
+Dabei ist mir aufgefallen, dass wir Unternehmen wie {company} dabei unterstuetzen,
+mehr qualifizierte Anfragen mit einem klaren Outreach-Prozess zu gewinnen.
+
+Kurzer Kontext:
+- Website: {website}
+- LinkedIn: {linkedin}
+
+Wenn du moechtest, kann ich dir in 10 Minuten zeigen,
+wie ein passender Outreach-Workflow fuer {company} aussehen kann.
+
+Viele Gruesse
+Max Mustermann

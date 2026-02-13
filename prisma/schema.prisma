@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PipelineStatus {
+  NEW
+  CONTACTED
+  REPLIED
+  INTERVIEW
+  PILOT_CANDIDATE
+  PILOT_RUNNING
+  WON
+  LOST
+}
+
+enum ClusterFit {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum EmailStyle {
+  SHORT
+  MEDIUM
+  TECHNICAL
+}
+
+model Lead {
+  id                       String         @id @default(cuid())
+  companyName              String
+  industry                 String
+  sizeEmployees            Int
+  digitalMaturity          Int
+  mlActivity               Boolean        @default(false)
+  mlActivityDescription    String?
+  associationMemberships   Json?
+  contactName              String
+  contactRole              String
+  contactEmail             String
+  linkedinUrl              String?
+  warmIntroPossible        Boolean        @default(false)
+  dataTypes                Json?
+  dataIntensity            Int
+  competitivePressure      Int
+  coopLikelihood           Int
+  priorityScore            Int
+  priorityLabel            Int
+  hypothesis               String
+  industryCluster          ClusterFit
+  clusterOverride          ClusterFit?
+  status                   PipelineStatus @default(NEW)
+  lastContactedAt          DateTime?
+  nextFollowUpAt           DateTime?
+  notes                    String?
+  customFieldValues        Json?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  emailDrafts              EmailDraft[]
+
+  @@index([status])
+  @@index([priorityScore])
+  @@index([nextFollowUpAt])
+}
+
+model CustomFieldDefinition {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmailDraft {
+  id        String     @id @default(cuid())
+  leadId    String
+  lead      Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  style     EmailStyle
+  subject   String
+  body      String
+  createdAt DateTime   @default(now())
+
+  @@index([leadId])
+}
