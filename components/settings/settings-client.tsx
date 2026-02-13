@@ -1,5 +1,6 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -12,48 +13,124 @@ type SettingsClientProps = {
   initialCustomFields: CustomFieldDefinitionRecord[];
 };
 
+type CustomFieldsResponse = {
+  customFields: CustomFieldDefinitionRecord[];
+};
+
+async function fetchCustomFields(): Promise<CustomFieldDefinitionRecord[]> {
+  const response = await fetch("/api/custom-fields", { cache: "no-store" });
+  if (!response.ok) throw new Error("Failed to fetch custom fields");
+  const data = (await response.json()) as CustomFieldsResponse;
+  return data.customFields;
+}
+
 export function SettingsClient({ initialCustomFields }: SettingsClientProps) {
+  const queryClient = useQueryClient();
+
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [fieldName, setFieldName] = useState("");
-  const [customFields, setCustomFields] = useState<CustomFieldDefinitionRecord[]>(initialCustomFields);
   const [fieldMessage, setFieldMessage] = useState<string | null>(null);
 
-  async function addCustomField() {
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["custom-fields"],
+    queryFn: fetchCustomFields,
+    initialData: initialCustomFields,
+  });
+
+  const addCustomFieldMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await fetch("/api/custom-fields", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error ?? "Feld konnte nicht angelegt werden.");
+      }
+
+      const data = (await response.json()) as { customField: CustomFieldDefinitionRecord };
+      return data.customField;
+    },
+    onMutate: async (name) => {
+      await queryClient.cancelQueries({ queryKey: ["custom-fields"] });
+      const previous = queryClient.getQueryData<CustomFieldDefinitionRecord[]>(["custom-fields"]);
+
+      const optimistic: CustomFieldDefinitionRecord = {
+        id: `temp-${Date.now()}`,
+        name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData<CustomFieldDefinitionRecord[]>(["custom-fields"], (current = []) => [...current, optimistic]);
+
+      return { previous, optimisticId: optimistic.id };
+    },
+    onError: (error, _name, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["custom-fields"], context.previous);
+      }
+      setFieldMessage(error instanceof Error ? error.message : "Feld konnte nicht angelegt werden.");
+    },
+    onSuccess: (field, _name, context) => {
+      queryClient.setQueryData<CustomFieldDefinitionRecord[]>(["custom-fields"], (current = []) =>
+        current.map((item) => (item.id === context?.optimisticId ? field : item)),
+      );
+      setFieldName("");
+      setFieldMessage(`Feld "${field.name}" angelegt.`);
+    },
+  });
+
+  const deleteCustomFieldMutation = useMutation({
+    mutationFn: async (fieldId: string) => {
+      const response = await fetch(`/api/custom-fields/${fieldId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string };
+        throw new Error(data.error ?? "Feld konnte nicht entfernt werden.");
+      }
+
+      return fieldId;
+    },
+    onMutate: async (fieldId) => {
+      await queryClient.cancelQueries({ queryKey: ["custom-fields"] });
+      const previous = queryClient.getQueryData<CustomFieldDefinitionRecord[]>(["custom-fields"]);
+
+      queryClient.setQueryData<CustomFieldDefinitionRecord[]>(["custom-fields"], (current = []) =>
+        current.filter((field) => field.id !== fieldId),
+      );
+
+      return { previous };
+    },
+    onError: (error, _fieldId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["custom-fields"], context.previous);
+      }
+      setFieldMessage(error instanceof Error ? error.message : "Feld konnte nicht entfernt werden.");
+    },
+  });
+
+  function addCustomField() {
     const name = fieldName.trim();
     if (!name) {
       setFieldMessage("Bitte Feldnamen eingeben.");
       return;
     }
 
-    const response = await fetch("/api/custom-fields", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ name }),
-    });
-
-    if (!response.ok) {
-      const data = (await response.json()) as { error?: string };
-      setFieldMessage(data.error ?? "Feld konnte nicht angelegt werden.");
-      return;
-    }
-
-    const data = (await response.json()) as { customField: CustomFieldDefinitionRecord };
-    setCustomFields((prev) => [...prev, data.customField]);
-    setFieldName("");
-    setFieldMessage(`Feld "${data.customField.name}" angelegt.`);
+    setFieldMessage(null);
+    addCustomFieldMutation.mutate(name);
   }
 
-  async function deleteCustomField(fieldId: string) {
-    const response = await fetch(`/api/custom-fields/${fieldId}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) return;
-    setCustomFields((prev) => prev.filter((field) => field.id !== fieldId));
+  function deleteCustomField(fieldId: string) {
+    deleteCustomFieldMutation.mutate(fieldId);
   }
 
   async function importCsv() {
@@ -86,6 +163,7 @@ export function SettingsClient({ initialCustomFields }: SettingsClientProps) {
     const data = (await response.json()) as { imported: number };
     setMessage(`Imported ${data.imported} lead(s).`);
     setCsvFile(null);
+    queryClient.invalidateQueries({ queryKey: ["leads"] });
   }
 
   return (
@@ -140,7 +218,9 @@ export function SettingsClient({ initialCustomFields }: SettingsClientProps) {
               onChange={(event) => setFieldName(event.target.value)}
               placeholder="Neues Feld, z. B. Data Owner"
             />
-            <Button onClick={addCustomField}>Feld hinzufügen</Button>
+            <Button onClick={addCustomField} disabled={addCustomFieldMutation.isPending}>
+              Feld hinzufügen
+            </Button>
           </div>
           {fieldMessage ? <p className="text-sm text-muted-foreground">{fieldMessage}</p> : null}
           <div className="grid gap-2">

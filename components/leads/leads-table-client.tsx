@@ -1,17 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PipelineStatus } from "@prisma/client";
 import { Plus, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { followUpLabel, formatDate } from "@/lib/date";
 import { clusterLabel, pipelineLabels } from "@/lib/constants";
+import { followUpLabel, formatDate } from "@/lib/date";
 import { CustomFieldDefinitionRecord, LeadWithDrafts } from "@/lib/types";
 import { ClusterBadge } from "./cluster-badge";
 import { LeadDetailDrawer } from "./lead-detail-drawer";
@@ -22,20 +23,116 @@ type LeadsTableClientProps = {
   initialLeads: LeadWithDrafts[];
   initialCustomFields: CustomFieldDefinitionRecord[];
   initialQuery?: string;
+  initialStatus?: string;
+  initialCluster?: string;
 };
 
 type SortKey = "companyName" | "priorityScore" | "nextFollowUpAt" | "industry";
 
-export function LeadsTableClient({ initialLeads, initialCustomFields, initialQuery = "" }: LeadsTableClientProps) {
-  const [leads, setLeads] = useState<LeadWithDrafts[]>(initialLeads);
-  const [customFields, setCustomFields] = useState<CustomFieldDefinitionRecord[]>(initialCustomFields);
+type LeadsResponse = {
+  leads: LeadWithDrafts[];
+};
+
+type CustomFieldsResponse = {
+  customFields: CustomFieldDefinitionRecord[];
+};
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timeout);
+  }, [delayMs, value]);
+
+  return debounced;
+}
+
+async function fetchLeads(query: string, status: string, cluster: string): Promise<LeadWithDrafts[]> {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (status !== "ALL") params.set("status", status);
+  if (cluster !== "ALL") params.set("cluster", cluster);
+
+  const response = await fetch(`/api/leads${params.toString() ? `?${params.toString()}` : ""}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) throw new Error("Failed to fetch leads");
+  const data = (await response.json()) as LeadsResponse;
+  return data.leads;
+}
+
+async function fetchCustomFields(): Promise<CustomFieldDefinitionRecord[]> {
+  const response = await fetch("/api/custom-fields", { cache: "no-store" });
+  if (!response.ok) throw new Error("Failed to fetch custom fields");
+  const data = (await response.json()) as CustomFieldsResponse;
+  return data.customFields;
+}
+
+function leadMatchesCurrentFilters(lead: LeadWithDrafts, query: string, status: string, cluster: string) {
+  const q = query.trim().toLowerCase();
+  const effectiveCluster = lead.clusterOverride ?? lead.industryCluster;
+
+  const matchesQuery =
+    !q ||
+    lead.companyName.toLowerCase().includes(q) ||
+    lead.industry.toLowerCase().includes(q) ||
+    lead.contactName.toLowerCase().includes(q) ||
+    lead.contactEmail.toLowerCase().includes(q);
+
+  const matchesStatus = status === "ALL" || lead.status === status;
+  const matchesCluster = cluster === "ALL" || effectiveCluster === cluster;
+
+  return matchesQuery && matchesStatus && matchesCluster;
+}
+
+export function LeadsTableClient({
+  initialLeads,
+  initialCustomFields,
+  initialQuery = "",
+  initialStatus = "ALL",
+  initialCluster = "ALL",
+}: LeadsTableClientProps) {
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = useState(initialQuery);
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [clusterFilter, setClusterFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [clusterFilter, setClusterFilter] = useState(initialCluster);
   const [sortKey, setSortKey] = useState<SortKey>("priorityScore");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [selectedLead, setSelectedLead] = useState<LeadWithDrafts | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+
+  const debouncedSearch = useDebouncedValue(search, 250);
+
+  const leadsQueryKey = useMemo(
+    () => ["leads", debouncedSearch.trim(), statusFilter, clusterFilter] as const,
+    [debouncedSearch, statusFilter, clusterFilter],
+  );
+
+  const { data: leads = [], isLoading: leadsLoading } = useQuery({
+    queryKey: leadsQueryKey,
+    queryFn: () => fetchLeads(debouncedSearch.trim(), statusFilter, clusterFilter),
+    initialData:
+      debouncedSearch.trim() === initialQuery.trim() &&
+      statusFilter === initialStatus &&
+      clusterFilter === initialCluster
+        ? initialLeads
+        : undefined,
+    placeholderData: (previousData) => previousData,
+  });
+
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["custom-fields"],
+    queryFn: fetchCustomFields,
+    initialData: initialCustomFields,
+  });
+
+  const selectedLead = useMemo(
+    () => leads.find((lead) => lead.id === selectedLeadId) ?? null,
+    [leads, selectedLeadId],
+  );
 
   const filteredLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -58,6 +155,7 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
 
     return [...base].sort((a, b) => {
       let result = 0;
+
       if (sortKey === "priorityScore") {
         result = a.priorityScore - b.priorityScore;
       }
@@ -88,14 +186,14 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
 
   const matchCounts = useMemo(() => {
     const normalized = new Map(
-      leads.map((lead) => [
+      filteredLeads.map((lead) => [
         lead.id,
         new Set(lead.dataTypes.map((type) => type.trim().toLowerCase()).filter(Boolean)),
       ]),
     );
 
     const result = new Map<string, number>();
-    leads.forEach((lead) => {
+    filteredLeads.forEach((lead) => {
       const own = normalized.get(lead.id);
       if (!own || own.size === 0) {
         result.set(lead.id, 0);
@@ -103,18 +201,97 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
       }
 
       let count = 0;
-      leads.forEach((candidate) => {
+      filteredLeads.forEach((candidate) => {
         if (candidate.id === lead.id) return;
         const other = normalized.get(candidate.id);
         if (!other || other.size === 0) return;
-        const shared = Array.from(own).some((item) => other.has(item));
-        if (shared) count += 1;
+        if (Array.from(own).some((item) => other.has(item))) {
+          count += 1;
+        }
       });
+
       result.set(lead.id, count);
     });
 
     return result;
-  }, [leads]);
+  }, [filteredLeads]);
+
+  const replaceLeadInCache = (updated: LeadWithDrafts) => {
+    queryClient.setQueriesData<LeadWithDrafts[]>({ queryKey: ["leads"] }, (current) => {
+      if (!current) return current;
+      return current.map((lead) => (lead.id === updated.id ? updated : lead));
+    });
+  };
+
+  const removeLeadFromCache = (leadId: string) => {
+    queryClient.setQueriesData<LeadWithDrafts[]>({ queryKey: ["leads"] }, (current) => {
+      if (!current) return current;
+      return current.filter((lead) => lead.id !== leadId);
+    });
+  };
+
+  const patchLeadMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Record<string, unknown> }) => {
+      const response = await fetch(`/api/leads/${id}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error("Failed to patch lead");
+      return (await response.json()) as { lead: LeadWithDrafts };
+    },
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: leadsQueryKey });
+      const previous = queryClient.getQueryData<LeadWithDrafts[]>(leadsQueryKey);
+
+      queryClient.setQueryData<LeadWithDrafts[]>(leadsQueryKey, (current = []) =>
+        current.map((lead) => (lead.id === id ? ({ ...lead, ...payload } as LeadWithDrafts) : lead)),
+      );
+
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(leadsQueryKey, context.previous);
+      }
+    },
+    onSuccess: ({ lead }) => {
+      replaceLeadInCache(lead);
+    },
+  });
+
+  const deleteLeadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/leads/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete lead");
+      return id;
+    },
+    onMutate: async (leadId) => {
+      await queryClient.cancelQueries({ queryKey: leadsQueryKey });
+      const previous = queryClient.getQueryData<LeadWithDrafts[]>(leadsQueryKey);
+      queryClient.setQueryData<LeadWithDrafts[]>(leadsQueryKey, (current = []) =>
+        current.filter((lead) => lead.id !== leadId),
+      );
+      return { previous, leadId };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(leadsQueryKey, context.previous);
+      }
+    },
+    onSuccess: (leadId) => {
+      removeLeadFromCache(leadId);
+      if (selectedLeadId === leadId) {
+        setSelectedLeadId(null);
+      }
+    },
+  });
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -127,15 +304,12 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
   }
 
   function updateLeadInState(updated: LeadWithDrafts) {
-    setLeads((prev) => prev.map((lead) => (lead.id === updated.id ? updated : lead)));
-    if (selectedLead?.id === updated.id) {
-      setSelectedLead(updated);
-    }
+    replaceLeadInCache(updated);
   }
 
   function updateLeadField(id: string, field: keyof LeadWithDrafts, value: unknown) {
-    setLeads((prev) =>
-      prev.map((lead) => {
+    queryClient.setQueryData<LeadWithDrafts[]>(leadsQueryKey, (current = []) =>
+      current.map((lead) => {
         if (lead.id !== id) return lead;
         return {
           ...lead,
@@ -145,32 +319,12 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
     );
   }
 
-  async function patchLead(id: string, payload: Record<string, unknown>) {
-    const response = await fetch(`/api/leads/${id}`, {
-      method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) return;
-
-    const data = (await response.json()) as { lead: LeadWithDrafts };
-    updateLeadInState(data.lead);
+  function patchLead(id: string, payload: Record<string, unknown>) {
+    patchLeadMutation.mutate({ id, payload });
   }
 
-  async function deleteLead(id: string) {
-    const response = await fetch(`/api/leads/${id}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) return;
-
-    setLeads((prev) => prev.filter((lead) => lead.id !== id));
-    if (selectedLead?.id === id) {
-      setSelectedLead(null);
-    }
+  function deleteLead(id: string) {
+    deleteLeadMutation.mutate(id);
   }
 
   return (
@@ -209,7 +363,7 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
         </Select>
         <div className="inline-flex items-center justify-end gap-2 rounded-md border border-border px-3 text-sm text-muted-foreground">
           <SlidersHorizontal className="h-4 w-4" />
-          {filteredLeads.length} visible
+          {leadsLoading ? "Loading..." : `${filteredLeads.length} visible`}
         </div>
       </div>
 
@@ -247,6 +401,7 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
             <TableBody>
               {filteredLeads.map((lead) => {
                 const effectiveCluster = lead.clusterOverride ?? lead.industryCluster;
+
                 return (
                   <TableRow key={lead.id}>
                     <TableCell>
@@ -286,7 +441,7 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
                         onChange={(event) => {
                           const status = event.target.value as PipelineStatus;
                           updateLeadField(lead.id, "status", status);
-                          void patchLead(lead.id, { status });
+                          patchLead(lead.id, { status });
                         }}
                         className="h-9 min-w-[10rem]"
                       >
@@ -334,7 +489,7 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setSelectedLead(lead)}>
+                        <Button size="sm" variant="outline" onClick={() => setSelectedLeadId(lead.id)}>
                           Details
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => deleteLead(lead.id)}>
@@ -351,17 +506,19 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
       )}
 
       <div className="mt-4 rounded-lg border border-border bg-card/70 p-3 text-sm text-muted-foreground">
-        Latest update: {formatDate(new Date())}. Inline edits auto-save on field blur.
+        Latest update: {formatDate(new Date())}. Inline edits are optimistic and sync in background.
       </div>
 
       <LeadDetailDrawer
         open={Boolean(selectedLead)}
         onOpenChange={(open) => {
-          if (!open) setSelectedLead(null);
+          if (!open) setSelectedLeadId(null);
         }}
         lead={selectedLead}
         customFields={customFields}
-        onCustomFieldsChanged={setCustomFields}
+        onCustomFieldsChanged={(fields) => {
+          queryClient.setQueryData<CustomFieldDefinitionRecord[]>(["custom-fields"], fields);
+        }}
         onLeadUpdated={updateLeadInState}
       />
 
@@ -370,7 +527,10 @@ export function LeadsTableClient({ initialLeads, initialCustomFields, initialQue
         onOpenChange={setCreateOpen}
         customFields={customFields}
         onCreated={(lead) => {
-          setLeads((prev) => [lead, ...prev]);
+          if (leadMatchesCurrentFilters(lead, search, statusFilter, clusterFilter)) {
+            queryClient.setQueryData<LeadWithDrafts[]>(leadsQueryKey, (current = []) => [lead, ...current]);
+          }
+          queryClient.invalidateQueries({ queryKey: ["leads"] });
         }}
       />
     </>

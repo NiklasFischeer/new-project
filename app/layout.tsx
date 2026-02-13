@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, Space_Grotesk } from "next/font/google";
 import { ReactNode } from "react";
 import "./globals.css";
+import { QueryProvider } from "@/components/layout/query-provider";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 
 const sans = Manrope({
@@ -28,9 +29,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${sans.variable} ${display.variable} font-sans`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            {children}
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

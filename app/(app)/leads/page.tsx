@@ -28,5 +28,13 @@ export default async function LeadsPage({ searchParams }: { searchParams: Search
     updatedAt: field.updatedAt.toISOString(),
   }));
 
-  return <LeadsTableClient initialLeads={serialized} initialQuery={resolved.q} initialCustomFields={serializedFields} />;
+  return (
+    <LeadsTableClient
+      initialLeads={serialized}
+      initialQuery={resolved.q}
+      initialStatus={resolved.status ?? "ALL"}
+      initialCluster={resolved.cluster ?? "ALL"}
+      initialCustomFields={serializedFields}
+    />
+  );
 }
