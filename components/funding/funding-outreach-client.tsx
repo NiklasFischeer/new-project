@@ -619,18 +619,18 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-10">
+                  <TableHead className="w-10 text-center">
                     <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectVisible} />
                   </TableHead>
-                  <TableHead className="w-[14%]">Name</TableHead>
-                  <TableHead className="w-[10%]">Fund Type</TableHead>
-                  <TableHead className="w-[10%]">Status</TableHead>
-                  <TableHead className="w-[12%]">Priority / Fit</TableHead>
-                  <TableHead className="w-[15%]">Kontakt</TableHead>
-                  <TableHead className="w-[8%]">Stage Focus</TableHead>
-                  <TableHead className="w-[8%]">Ticket & Geo</TableHead>
-                  <TableHead className="w-[9%]">Next Follow-up</TableHead>
-                  <TableHead className="w-[10%] text-right">Actions</TableHead>
+                  <TableHead className="w-[15%] text-center">Name</TableHead>
+                  <TableHead className="w-[10%] text-center">Fund Type</TableHead>
+                  <TableHead className="w-[12%] text-center">Status</TableHead>
+                  <TableHead className="w-[11%] text-center">Priority / Fit</TableHead>
+                  <TableHead className="w-[14%] text-center">Kontakt</TableHead>
+                  <TableHead className="w-[10%] text-center">Stage Focus</TableHead>
+                  <TableHead className="w-[8%] text-center">Ticket & Geo</TableHead>
+                  <TableHead className="w-[10%] text-center">Next Follow-up</TableHead>
+                  <TableHead className="w-[10%] text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -640,7 +640,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                   const primaryStage = lead.stageFocus[0] ?? "ANY";
                   return (
                     <TableRow key={lead.id}>
-                      <TableCell>
+                      <TableCell className="text-center">
                         <input
                           type="checkbox"
                           checked={selected}
@@ -654,7 +654,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                           value={lead.name}
                           onChange={(event) => updateLeadField(lead.id, "name", event.target.value)}
                           onBlur={(event) => patchLead(lead.id, { name: event.target.value })}
-                          className="h-8 w-full"
+                          className="h-8 w-full text-center"
                         />
                       </TableCell>
                       <TableCell>
@@ -665,7 +665,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                             updateLeadField(lead.id, "fundType", fundType);
                             patchLead(lead.id, { fundType });
                           }}
-                          className="h-9 w-full"
+                          className="h-9 w-full text-center"
                         >
                           {fundTypeOptions.map((fundType) => (
                             <option key={fundType} value={fundType}>
@@ -682,7 +682,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                             updateLeadField(lead.id, "status", status);
                             patchLead(lead.id, { status });
                           }}
-                          className="h-9 w-full"
+                          className="h-9 w-full text-center"
                         >
                           {statusOptions.map((status) => (
                             <option key={status} value={status}>
@@ -692,9 +692,9 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <div className="grid gap-1">
+                        <div className="grid justify-items-center gap-1">
                           <FundingPriorityBadge score={lead.fitScore} priority={lead.priority} />
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex flex-wrap justify-center gap-1">
                             <FundingClusterBadge cluster={effectiveCluster} />
                             {lead.warmIntroPossible ? (
                               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200">
@@ -709,9 +709,9 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                           value={lead.contactEmail ?? ""}
                           onChange={(event) => updateLeadField(lead.id, "contactEmail", event.target.value)}
                           onBlur={(event) => patchLead(lead.id, { contactEmail: event.target.value })}
-                          className="h-8 w-full"
+                          className="h-8 w-full text-center"
                         />
-                        <p className="mt-1 text-xs text-muted-foreground">{lead.primaryContactName || "-"}</p>
+                        <p className="mt-1 text-center text-xs text-muted-foreground">{lead.primaryContactName || "-"}</p>
                       </TableCell>
                       <TableCell>
                         <Select
@@ -722,7 +722,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                             updateLeadField(lead.id, "stageFocus", nextStages);
                             patchLead(lead.id, { stageFocus: nextStages });
                           }}
-                          className="h-9 w-full"
+                          className="h-9 w-full text-center"
                         >
                           {stageFocusOptions.map((stage) => (
                             <option key={stage} value={stage}>
@@ -731,11 +731,11 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                           ))}
                         </Select>
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top text-center">
                         <p className="text-sm">{ticketRange(lead)}</p>
                         <p className="text-xs text-muted-foreground">{lead.geoFocus[0] || lead.category || "-"}</p>
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top text-center">
                         <Input
                           type="date"
                           value={lead.nextFollowUpAt?.slice(0, 10) ?? ""}
@@ -747,18 +747,19 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                               nextFollowUpAt: event.target.value ? `${event.target.value}T00:00:00.000Z` : null,
                             })
                           }
-                          className="h-8"
+                          className="h-8 text-center"
                         />
-                        <p className="mt-1 text-xs text-muted-foreground">{followUpLabel(lead.nextFollowUpAt)}</p>
+                        <p className="mt-1 text-center text-xs text-muted-foreground">{followUpLabel(lead.nextFollowUpAt)}</p>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedLeadId(lead.id)}>
+                      <TableCell className="align-top text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Button size="sm" variant="outline" className="w-20" onClick={() => setSelectedLeadId(lead.id)}>
                             Details
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
+                            className="w-20"
                             onClick={async () => {
                               const confirmed = window.confirm(`"${lead.name}" wirklich löschen?`);
                               if (!confirmed) return;
