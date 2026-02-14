@@ -87,6 +87,17 @@ enum FundingEmailStyle {
   GRANT
 }
 
+enum CustomListScope {
+  LEADS
+  FUNDING_OUTREACH
+}
+
+enum CustomListKind {
+  SINGLE_SELECT
+  MULTI_SELECT
+  TAGS
+}
+
 model Lead {
   id                       String         @id @default(cuid())
   companyName              String
@@ -130,6 +141,19 @@ model CustomFieldDefinition {
   name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model CustomListDefinition {
+  id        String          @id @default(cuid())
+  scope     CustomListScope
+  kind      CustomListKind  @default(SINGLE_SELECT)
+  name      String
+  options   String[]        @default([])
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([scope])
+  @@unique([scope, name])
 }
 
 model EmailDraft {

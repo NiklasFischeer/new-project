@@ -25,6 +25,19 @@ export type CustomFieldDefinitionRecord = {
   updatedAt: string;
 };
 
+export type CustomListScopeRecord = "LEADS" | "FUNDING_OUTREACH";
+export type CustomListKindRecord = "SINGLE_SELECT" | "MULTI_SELECT" | "TAGS";
+
+export type CustomListDefinitionRecord = {
+  id: string;
+  scope: CustomListScopeRecord;
+  kind: CustomListKindRecord;
+  name: string;
+  options: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type LeadWithDrafts = {
   id: string;
   companyName: string;

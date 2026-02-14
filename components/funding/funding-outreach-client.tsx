@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FundingStatus } from "@prisma/client";
-import { CalendarPlus, Download, Filter, Plus, Upload } from "lucide-react";
+import { Download, Filter, Plus, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Toast } from "@/components/ui/toast";
+import { fundingFundTypeLabels, fundingStageLabels, fundingStatusLabels } from "@/lib/constants";
 import { followUpLabel, formatDate } from "@/lib/date";
 import { FundingLeadFilters, FundingSortKey } from "@/lib/funding-filters";
 import { FundingLeadWithDrafts } from "@/lib/types";
 import { FundingClusterBadge } from "./funding-cluster-badge";
 import { FundingDetailDrawer } from "./funding-detail-drawer";
-import { FundingFundTypeBadge } from "./funding-fund-type-badge";
 import { FundingPipelineBoard } from "./funding-pipeline-board";
 import { FundingPriorityBadge } from "./funding-priority-badge";
-import { FundingStatusBadge } from "./funding-status-badge";
 import { NewFundingLeadDialog } from "./new-funding-lead-dialog";
 
 type FundingOutreachClientProps = {
@@ -448,7 +447,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                     variant={fundTypes.includes(option) ? "default" : "outline"}
                     onClick={() => setFundTypes((prev) => toggleValue(prev, option))}
                   >
-                    {option}
+                    {fundingFundTypeLabels[option]}
                   </Button>
                 ))}
               </div>
@@ -464,7 +463,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                     variant={statuses.includes(option) ? "default" : "outline"}
                     onClick={() => setStatuses((prev) => toggleValue(prev, option))}
                   >
-                    {option}
+                    {fundingStatusLabels[option]}
                   </Button>
                 ))}
               </div>
@@ -480,7 +479,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                     variant={stageFocus.includes(option) ? "default" : "outline"}
                     onClick={() => setStageFocus((prev) => toggleValue(prev, option))}
                   >
-                    {option}
+                    {fundingStageLabels[option]}
                   </Button>
                 ))}
               </div>
@@ -579,7 +578,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
           <Select value={bulkStatus} onChange={(event) => setBulkStatus(event.target.value as FundingStatus)} className="w-56">
             {statusOptions.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {fundingStatusLabels[status]}
               </option>
             ))}
           </Select>
@@ -617,30 +616,28 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
           />
         ) : (
           <div className="rounded-lg border border-border bg-card/80">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>
+                  <TableHead className="w-10">
                     <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectVisible} />
                   </TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Fund Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Fit Cluster</TableHead>
-                  <TableHead>Warm Intro</TableHead>
-                  <TableHead>Kontakt</TableHead>
-                  <TableHead>Stage Focus</TableHead>
-                  <TableHead>Ticket</TableHead>
-                  <TableHead>Country</TableHead>
-                  <TableHead>Next Follow-up</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="w-[14%]">Name</TableHead>
+                  <TableHead className="w-[10%]">Fund Type</TableHead>
+                  <TableHead className="w-[10%]">Status</TableHead>
+                  <TableHead className="w-[12%]">Priority / Fit</TableHead>
+                  <TableHead className="w-[15%]">Kontakt</TableHead>
+                  <TableHead className="w-[8%]">Stage Focus</TableHead>
+                  <TableHead className="w-[8%]">Ticket & Geo</TableHead>
+                  <TableHead className="w-[9%]">Next Follow-up</TableHead>
+                  <TableHead className="w-[10%] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {leads.map((lead) => {
                   const selected = selectedIds.includes(lead.id);
                   const effectiveCluster = lead.fitClusterOverride ?? lead.fitCluster;
+                  const primaryStage = lead.stageFocus[0] ?? "ANY";
                   return (
                     <TableRow key={lead.id}>
                       <TableCell>
@@ -656,12 +653,26 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                         <Input
                           value={lead.name}
                           onChange={(event) => updateLeadField(lead.id, "name", event.target.value)}
-                          onBlur={() => patchLead(lead.id, { name: lead.name })}
-                          className="h-8"
+                          onBlur={(event) => patchLead(lead.id, { name: event.target.value })}
+                          className="h-8 w-full"
                         />
                       </TableCell>
                       <TableCell>
-                        <FundingFundTypeBadge fundType={lead.fundType} />
+                        <Select
+                          value={lead.fundType}
+                          onChange={(event) => {
+                            const fundType = event.target.value as FundingLeadWithDrafts["fundType"];
+                            updateLeadField(lead.id, "fundType", fundType);
+                            patchLead(lead.id, { fundType });
+                          }}
+                          className="h-9 w-full"
+                        >
+                          {fundTypeOptions.map((fundType) => (
+                            <option key={fundType} value={fundType}>
+                              {fundingFundTypeLabels[fundType]}
+                            </option>
+                          ))}
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Select
@@ -671,51 +682,71 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                             updateLeadField(lead.id, "status", status);
                             patchLead(lead.id, { status });
                           }}
-                          className="h-9 min-w-[10rem]"
+                          className="h-9 w-full"
                         >
                           {statusOptions.map((status) => (
                             <option key={status} value={status}>
-                              {status}
+                              {fundingStatusLabels[status]}
                             </option>
                           ))}
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <FundingPriorityBadge score={lead.fitScore} priority={lead.priority} />
+                        <div className="grid gap-1">
+                          <FundingPriorityBadge score={lead.fitScore} priority={lead.priority} />
+                          <div className="flex flex-wrap gap-1">
+                            <FundingClusterBadge cluster={effectiveCluster} />
+                            {lead.warmIntroPossible ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200">
+                                Warm Intro
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        <FundingClusterBadge cluster={effectiveCluster} />
-                      </TableCell>
-                      <TableCell>{lead.warmIntroPossible ? <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Ja</span> : "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="align-top">
                         <Input
                           value={lead.contactEmail ?? ""}
                           onChange={(event) => updateLeadField(lead.id, "contactEmail", event.target.value)}
-                          onBlur={() => patchLead(lead.id, { contactEmail: lead.contactEmail })}
-                          className="h-8"
+                          onBlur={(event) => patchLead(lead.id, { contactEmail: event.target.value })}
+                          className="h-8 w-full"
                         />
                         <p className="mt-1 text-xs text-muted-foreground">{lead.primaryContactName || "-"}</p>
                       </TableCell>
                       <TableCell>
-                        <div className="flex max-w-56 flex-wrap gap-1">
-                          {lead.stageFocus.slice(0, 2).map((stage) => (
-                            <span key={`${lead.id}-${stage}`} className="rounded-full border border-border px-2 py-0.5 text-xs">
-                              {stage}
-                            </span>
+                        <Select
+                          value={primaryStage}
+                          onChange={(event) => {
+                            const nextStage = event.target.value as FundingLeadWithDrafts["stageFocus"][number];
+                            const nextStages = [nextStage];
+                            updateLeadField(lead.id, "stageFocus", nextStages);
+                            patchLead(lead.id, { stageFocus: nextStages });
+                          }}
+                          className="h-9 w-full"
+                        >
+                          {stageFocusOptions.map((stage) => (
+                            <option key={stage} value={stage}>
+                              {fundingStageLabels[stage]}
+                            </option>
                           ))}
-                          {lead.stageFocus.length > 2 ? <span className="text-xs text-muted-foreground">+{lead.stageFocus.length - 2}</span> : null}
-                        </div>
+                        </Select>
                       </TableCell>
-                      <TableCell>{ticketRange(lead)}</TableCell>
-                      <TableCell>{lead.geoFocus[0] || lead.category || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="align-top">
+                        <p className="text-sm">{ticketRange(lead)}</p>
+                        <p className="text-xs text-muted-foreground">{lead.geoFocus[0] || lead.category || "-"}</p>
+                      </TableCell>
+                      <TableCell className="align-top">
                         <Input
                           type="date"
                           value={lead.nextFollowUpAt?.slice(0, 10) ?? ""}
                           onChange={(event) =>
                             updateLeadField(lead.id, "nextFollowUpAt", event.target.value ? `${event.target.value}T00:00:00.000Z` : null)
                           }
-                          onBlur={() => patchLead(lead.id, { nextFollowUpAt: lead.nextFollowUpAt })}
+                          onBlur={(event) =>
+                            patchLead(lead.id, {
+                              nextFollowUpAt: event.target.value ? `${event.target.value}T00:00:00.000Z` : null,
+                            })
+                          }
                           className="h-8"
                         />
                         <p className="mt-1 text-xs text-muted-foreground">{followUpLabel(lead.nextFollowUpAt)}</p>
@@ -723,16 +754,7 @@ export function FundingOutreachClient({ initialLeads, initialFilters }: FundingO
                       <TableCell>
                         <div className="flex justify-end gap-2">
                           <Button size="sm" variant="outline" onClick={() => setSelectedLeadId(lead.id)}>
-                            Open details
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1"
-                            onClick={() => setToast({ tone: "info", message: "Kalender-Integration folgt (Placeholder)." })}
-                          >
-                            <CalendarPlus className="h-3.5 w-3.5" />
-                            Add to calendar
+                            Details
                           </Button>
                           <Button
                             size="sm"

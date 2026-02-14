@@ -26,6 +26,14 @@ type FundingEmailDraftModel = {
   create: (args: unknown) => Promise<any>;
 };
 
+type CustomListDefinitionModel = {
+  findMany: (args?: unknown) => Promise<any[]>;
+  findUnique: (args: unknown) => Promise<any>;
+  create: (args: unknown) => Promise<any>;
+  update: (args: unknown) => Promise<any>;
+  delete: (args: unknown) => Promise<any>;
+};
+
 export const prisma =
   global.prismaGlobal ??
   new PrismaClient({
@@ -46,4 +54,8 @@ export function getFundingLeadModel(): FundingLeadModel | undefined {
 
 export function getFundingEmailDraftModel(): FundingEmailDraftModel | undefined {
   return (prisma as unknown as { fundingEmailDraft?: FundingEmailDraftModel }).fundingEmailDraft;
+}
+
+export function getCustomListDefinitionModel(): CustomListDefinitionModel | undefined {
+  return (prisma as unknown as { customListDefinition?: CustomListDefinitionModel }).customListDefinition;
 }
