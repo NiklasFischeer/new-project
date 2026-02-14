@@ -40,8 +40,10 @@ function escapeCsv(value: unknown): string {
   return output;
 }
 
-export function buildLeadsCsv(rows: Array<Record<string, unknown>>): string {
+export function buildLeadsCsv(rows: Array<Record<string, unknown>>, templateOnly = false): string {
   const header = csvHeaders.join(",");
+  if (templateOnly) return `${header}\n`;
+
   const body = rows
     .map((row) =>
       csvHeaders

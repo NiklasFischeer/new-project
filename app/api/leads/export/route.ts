@@ -4,6 +4,17 @@ import { getLeads } from "@/lib/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  const templateOnly = searchParams.get("template") === "1";
+
+  if (templateOnly) {
+    const csvTemplate = buildLeadsCsv([], true);
+    return new Response(csvTemplate, {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": 'attachment; filename="leads-template.csv"',
+      },
+    });
+  }
 
   const q = searchParams.get("q") ?? undefined;
   const status = searchParams.get("status") ?? undefined;
