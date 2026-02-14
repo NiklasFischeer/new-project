@@ -12,6 +12,20 @@ type CustomFieldDefinitionModel = {
   findUnique: (args: unknown) => Promise<any>;
 };
 
+type FundingLeadModel = {
+  findMany: (args?: unknown) => Promise<any[]>;
+  findUnique: (args: unknown) => Promise<any>;
+  findFirst: (args: unknown) => Promise<any>;
+  create: (args: unknown) => Promise<any>;
+  update: (args: unknown) => Promise<any>;
+  delete: (args: unknown) => Promise<any>;
+  count: (args?: unknown) => Promise<number>;
+};
+
+type FundingEmailDraftModel = {
+  create: (args: unknown) => Promise<any>;
+};
+
 export const prisma =
   global.prismaGlobal ??
   new PrismaClient({
@@ -24,4 +38,12 @@ if (process.env.NODE_ENV !== "production") {
 
 export function getCustomFieldDefinitionModel(): CustomFieldDefinitionModel | undefined {
   return (prisma as unknown as { customFieldDefinition?: CustomFieldDefinitionModel }).customFieldDefinition;
+}
+
+export function getFundingLeadModel(): FundingLeadModel | undefined {
+  return (prisma as unknown as { fundingLead?: FundingLeadModel }).fundingLead;
+}
+
+export function getFundingEmailDraftModel(): FundingEmailDraftModel | undefined {
+  return (prisma as unknown as { fundingEmailDraft?: FundingEmailDraftModel }).fundingEmailDraft;
 }

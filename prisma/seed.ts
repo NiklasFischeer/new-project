@@ -1,6 +1,7 @@
-import { PrismaClient, PipelineStatus } from "@prisma/client";
+import { FundingFundType, FundingStatus, FundingTargetStage, PipelineStatus, FundingStage, PrismaClient } from "@prisma/client";
 import { calculatePriorityLabel, calculatePriorityScore } from "../lib/scoring";
 import { deriveIndustryCluster, generateHypothesis } from "../lib/hypothesis";
+import { calculateFundingFitScore, calculateFundingPriority, deriveFundingFitCluster } from "../lib/funding-scoring";
 
 const prisma = new PrismaClient();
 
@@ -25,6 +26,45 @@ type SeedLead = {
   status: PipelineStatus;
   nextFollowUpAt?: Date;
   lastContactedAt?: Date;
+  notes?: string;
+};
+
+type SeedFundingLead = {
+  name: string;
+  fundType: FundingFundType;
+  category?: string;
+  primaryContactName?: string;
+  primaryContactRole?: string;
+  contactEmail?: string;
+  linkedinUrl?: string;
+  websiteUrl?: string;
+  stageFocus: FundingStage[];
+  targetStage: FundingTargetStage;
+  ticketMin?: number;
+  ticketMax?: number;
+  currency?: string;
+  typicalInstrument?: string;
+  grantDeadline?: Date;
+  grantRequirements?: string;
+  thesisTags: string[];
+  industryFocus: string[];
+  geoFocus: string[];
+  warmIntroPossible: boolean;
+  introPath?: string;
+  stageMatch: number;
+  thesisMatch: number;
+  geoMatch: number;
+  ticketMatch: number;
+  status: FundingStatus;
+  firstContactedAt?: Date;
+  lastContactedAt?: Date;
+  nextFollowUpAt?: Date;
+  cadenceStep?: number;
+  outcomeNotes?: string;
+  owner?: string;
+  sourceText?: string;
+  sourceUrl?: string;
+  lastVerifiedAt?: Date;
   notes?: string;
 };
 
@@ -280,68 +320,257 @@ const leads: SeedLead[] = [
   },
 ];
 
+const fundingLeads: SeedFundingLead[] = [
+  {
+    name: "Speedinvest",
+    fundType: FundingFundType.VC,
+    category: "EU / DACH",
+    primaryContactName: "Anna Keller",
+    primaryContactRole: "Partner",
+    contactEmail: "anna@speedinvest.com",
+    linkedinUrl: "https://www.linkedin.com/in/anna-keller",
+    websiteUrl: "https://www.speedinvest.com",
+    stageFocus: [FundingStage.PRE_SEED, FundingStage.SEED],
+    targetStage: FundingTargetStage.PRE_SEED,
+    ticketMin: 500000,
+    ticketMax: 3000000,
+    currency: "EUR",
+    typicalInstrument: "equity / SAFE",
+    thesisTags: ["AI", "Federated Learning", "B2B SaaS", "Data Infrastructure"],
+    industryFocus: ["Manufacturing", "Energy"],
+    geoFocus: ["AT", "DE", "EU"],
+    warmIntroPossible: true,
+    introPath: "via portfolio founder referral",
+    stageMatch: 3,
+    thesisMatch: 3,
+    geoMatch: 2,
+    ticketMatch: 2,
+    status: FundingStatus.WARM_INTRO,
+    lastContactedAt: new Date("2026-02-10"),
+    nextFollowUpAt: new Date("2026-02-18"),
+    owner: "Niklas",
+    sourceText: "Crunchbase + founder network",
+    sourceUrl: "https://www.crunchbase.com/organization/speedinvest",
+    lastVerifiedAt: new Date("2026-02-11"),
+  },
+  {
+    name: "HV Capital",
+    fundType: FundingFundType.VC,
+    category: "Germany",
+    primaryContactName: "Moritz Hahn",
+    primaryContactRole: "Principal",
+    contactEmail: "moritz@hvcapital.com",
+    linkedinUrl: "https://www.linkedin.com/in/moritz-hahn",
+    websiteUrl: "https://www.hvcapital.com",
+    stageFocus: [FundingStage.SEED, FundingStage.SERIES_A],
+    targetStage: FundingTargetStage.SEED,
+    ticketMin: 1000000,
+    ticketMax: 5000000,
+    currency: "EUR",
+    typicalInstrument: "equity",
+    thesisTags: ["AI", "ML", "Industrial"],
+    industryFocus: ["Manufacturing", "Logistics"],
+    geoFocus: ["DE", "EU"],
+    warmIntroPossible: false,
+    stageMatch: 2,
+    thesisMatch: 2,
+    geoMatch: 2,
+    ticketMatch: 1,
+    status: FundingStatus.RESEARCHED,
+    nextFollowUpAt: new Date("2026-02-25"),
+    owner: "Niklas",
+    sourceText: "Website research",
+    sourceUrl: "https://www.hvcapital.com",
+    lastVerifiedAt: new Date("2026-02-08"),
+  },
+  {
+    name: "AWS Pre-Seed Program",
+    fundType: FundingFundType.GRANT,
+    category: "EU-wide",
+    primaryContactName: "Program Office",
+    primaryContactRole: "Program Manager",
+    contactEmail: "programs@aws.amazon.com",
+    websiteUrl: "https://aws.amazon.com/startups",
+    stageFocus: [FundingStage.IDEA, FundingStage.PRE_SEED, FundingStage.SEED],
+    targetStage: FundingTargetStage.PRE_SEED,
+    ticketMin: 10000,
+    ticketMax: 100000,
+    currency: "EUR",
+    typicalInstrument: "grant credits",
+    grantDeadline: new Date("2026-04-30"),
+    grantRequirements: "EU entity, technical roadmap, cloud architecture scope.",
+    thesisTags: ["AI", "ML", "Data Infrastructure"],
+    industryFocus: ["Manufacturing", "Energy", "Healthcare"],
+    geoFocus: ["EU", "Global"],
+    warmIntroPossible: false,
+    stageMatch: 3,
+    thesisMatch: 2,
+    geoMatch: 2,
+    ticketMatch: 1,
+    status: FundingStatus.CONTACTED,
+    firstContactedAt: new Date("2026-02-05"),
+    lastContactedAt: new Date("2026-02-12"),
+    nextFollowUpAt: new Date("2026-02-19"),
+    cadenceStep: 1,
+    owner: "Niklas",
+    sourceText: "AWS startup page",
+    sourceUrl: "https://aws.amazon.com/startups",
+    lastVerifiedAt: new Date("2026-02-12"),
+  },
+  {
+    name: "FFG Basisprogramm",
+    fundType: FundingFundType.PUBLIC_PROGRAM,
+    category: "Austria",
+    primaryContactName: "Förderberatung Team",
+    primaryContactRole: "Programmstelle",
+    contactEmail: "info@ffg.at",
+    websiteUrl: "https://www.ffg.at",
+    stageFocus: [FundingStage.PRE_SEED, FundingStage.SEED, FundingStage.SERIES_A],
+    targetStage: FundingTargetStage.SEED,
+    ticketMin: 50000,
+    ticketMax: 500000,
+    currency: "EUR",
+    typicalInstrument: "grant + loan mix",
+    grantDeadline: new Date("2026-05-31"),
+    grantRequirements: "TRL > 4, Austrian entity, innovation impact narrative.",
+    thesisTags: ["DeepTech", "Industrial", "Federated Learning"],
+    industryFocus: ["Manufacturing", "Energy", "Public Sector"],
+    geoFocus: ["AT", "EU"],
+    warmIntroPossible: true,
+    introPath: "via Wirtschaftsagentur Wien",
+    stageMatch: 2,
+    thesisMatch: 3,
+    geoMatch: 2,
+    ticketMatch: 2,
+    status: FundingStatus.MEETING_BOOKED,
+    firstContactedAt: new Date("2026-02-03"),
+    lastContactedAt: new Date("2026-02-09"),
+    nextFollowUpAt: new Date("2026-02-16"),
+    cadenceStep: 2,
+    owner: "Niklas",
+    sourceText: "FFG website",
+    sourceUrl: "https://www.ffg.at/basisprogramm",
+    lastVerifiedAt: new Date("2026-02-09"),
+    notes: "Need consortium option check.",
+  },
+  {
+    name: "Techstars AI Accelerator",
+    fundType: FundingFundType.ACCELERATOR,
+    category: "Global",
+    primaryContactName: "Selection Committee",
+    primaryContactRole: "Program Team",
+    contactEmail: "apply@techstars.com",
+    websiteUrl: "https://www.techstars.com",
+    stageFocus: [FundingStage.PRE_SEED, FundingStage.SEED],
+    targetStage: FundingTargetStage.PRE_SEED,
+    ticketMin: 120000,
+    ticketMax: 120000,
+    currency: "USD",
+    typicalInstrument: "equity + program",
+    thesisTags: ["AI", "B2B SaaS", "Data Infrastructure"],
+    industryFocus: ["Manufacturing", "Energy", "Logistics"],
+    geoFocus: ["Global"],
+    warmIntroPossible: false,
+    stageMatch: 3,
+    thesisMatch: 2,
+    geoMatch: 1,
+    ticketMatch: 2,
+    status: FundingStatus.NEW,
+    nextFollowUpAt: new Date("2026-02-28"),
+    owner: "Niklas",
+    sourceText: "Techstars program page",
+    sourceUrl: "https://www.techstars.com/accelerators",
+    lastVerifiedAt: new Date("2026-02-13"),
+  },
+];
+
 async function main() {
-  const existingLeadCount = await prisma.lead.count();
-  if (existingLeadCount > 0) {
-    console.info("Seed skipped: lead table already contains data.");
-    return;
-  }
+  const [existingLeadCount, existingFundingCount] = await Promise.all([
+    prisma.lead.count(),
+    prisma.fundingLead.count(),
+  ]);
 
-  await prisma.customFieldDefinition.upsert({
-    where: { name: "Data Owner" },
-    update: {},
-    create: { name: "Data Owner" },
-  });
-  await prisma.customFieldDefinition.upsert({
-    where: { name: "System Landscape" },
-    update: {},
-    create: { name: "System Landscape" },
-  });
-
-  for (const lead of leads) {
-    const priorityScore = calculatePriorityScore(lead);
-    const priorityLabel = calculatePriorityLabel(priorityScore);
-    const industryCluster = deriveIndustryCluster(lead.industry, lead.dataIntensity);
-    const hypothesis = generateHypothesis({
-      companyName: lead.companyName,
-      industry: lead.industry,
-      dataIntensity: lead.dataIntensity,
-      mlActivity: lead.mlActivity,
-      mlActivityDescription: lead.mlActivityDescription,
+  if (existingLeadCount === 0) {
+    await prisma.customFieldDefinition.upsert({
+      where: { name: "Data Owner" },
+      update: {},
+      create: { name: "Data Owner" },
+    });
+    await prisma.customFieldDefinition.upsert({
+      where: { name: "System Landscape" },
+      update: {},
+      create: { name: "System Landscape" },
     });
 
-    await prisma.lead.create({
-      data: {
+    for (const lead of leads) {
+      const priorityScore = calculatePriorityScore(lead);
+      const priorityLabel = calculatePriorityLabel(priorityScore);
+      const industryCluster = deriveIndustryCluster(lead.industry, lead.dataIntensity);
+      const hypothesis = generateHypothesis({
         companyName: lead.companyName,
         industry: lead.industry,
-        sizeEmployees: lead.sizeEmployees,
-        digitalMaturity: lead.digitalMaturity,
+        dataIntensity: lead.dataIntensity,
         mlActivity: lead.mlActivity,
         mlActivityDescription: lead.mlActivityDescription,
-        associationMemberships: lead.associationMemberships,
-        dataTypes: lead.dataTypes ?? [],
-        contactName: lead.contactName,
-        contactRole: lead.contactRole,
-        contactEmail: lead.contactEmail,
-        linkedinUrl: lead.linkedinUrl,
-        warmIntroPossible: lead.warmIntroPossible,
-        dataIntensity: lead.dataIntensity,
-        competitivePressure: lead.competitivePressure,
-        coopLikelihood: lead.coopLikelihood,
-        priorityScore,
-        priorityLabel,
-        hypothesis,
-        industryCluster,
-        status: lead.status,
-        lastContactedAt: lead.lastContactedAt,
-        nextFollowUpAt: lead.nextFollowUpAt,
-        notes: lead.notes,
-        customFieldValues: lead.customFieldValues ?? {},
-      },
-    });
+      });
+
+      await prisma.lead.create({
+        data: {
+          companyName: lead.companyName,
+          industry: lead.industry,
+          sizeEmployees: lead.sizeEmployees,
+          digitalMaturity: lead.digitalMaturity,
+          mlActivity: lead.mlActivity,
+          mlActivityDescription: lead.mlActivityDescription,
+          associationMemberships: lead.associationMemberships,
+          dataTypes: lead.dataTypes ?? [],
+          contactName: lead.contactName,
+          contactRole: lead.contactRole,
+          contactEmail: lead.contactEmail,
+          linkedinUrl: lead.linkedinUrl,
+          warmIntroPossible: lead.warmIntroPossible,
+          dataIntensity: lead.dataIntensity,
+          competitivePressure: lead.competitivePressure,
+          coopLikelihood: lead.coopLikelihood,
+          priorityScore,
+          priorityLabel,
+          hypothesis,
+          industryCluster,
+          status: lead.status,
+          lastContactedAt: lead.lastContactedAt,
+          nextFollowUpAt: lead.nextFollowUpAt,
+          notes: lead.notes,
+          customFieldValues: lead.customFieldValues ?? {},
+        },
+      });
+    }
+
+    console.info(`Seeded ${leads.length} leads.`);
+  } else {
+    console.info("Lead seed skipped: lead table already contains data.");
   }
 
-  console.info(`Seeded ${leads.length} leads.`);
+  if (existingFundingCount === 0) {
+    for (const fundingLead of fundingLeads) {
+      const fitScore = calculateFundingFitScore(fundingLead);
+      const priority = calculateFundingPriority(fitScore);
+      const fitCluster = deriveFundingFitCluster(fitScore);
+
+      await prisma.fundingLead.create({
+        data: {
+          ...fundingLead,
+          fitScore,
+          priority,
+          fitCluster,
+          currency: fundingLead.currency ?? "EUR",
+        },
+      });
+    }
+
+    console.info(`Seeded ${fundingLeads.length} funding leads.`);
+  } else {
+    console.info("Funding seed skipped: funding lead table already contains data.");
+  }
 }
 
 main()

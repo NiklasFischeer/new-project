@@ -22,10 +22,18 @@ export function TopSearch() {
       qs.delete("q");
     }
 
-    const target = "/leads";
+    const target = pathname.startsWith("/funding-outreach")
+      ? "/funding-outreach"
+      : pathname.startsWith("/leads")
+        ? "/leads"
+        : "/leads";
     const query = qs.toString();
     router.push(query ? `${target}?${query}` : target);
   }
+
+  const placeholder = pathname.startsWith("/funding-outreach")
+    ? "Suche Funding Name, Fund, Kontakt, Land, Tags..."
+    : "Search company, industry, or contact...";
 
   return (
     <form onSubmit={onSubmit} className="relative w-full max-w-xl">
@@ -33,7 +41,7 @@ export function TopSearch() {
       <Input
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        placeholder="Search company, industry, or contact..."
+        placeholder={placeholder}
         className="pl-9"
       />
     </form>

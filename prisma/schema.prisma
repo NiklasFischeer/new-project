@@ -31,6 +31,62 @@ enum EmailStyle {
   TECHNICAL
 }
 
+enum FundingFundType {
+  VC
+  CVC
+  ANGEL
+  ANGEL_NETWORK
+  ACCELERATOR
+  INCUBATOR
+  GRANT
+  PUBLIC_PROGRAM
+  COMPETITION
+  VENTURE_DEBT
+  OTHER
+}
+
+enum FundingStatus {
+  NEW
+  RESEARCHED
+  WARM_INTRO
+  CONTACTED
+  MEETING_BOOKED
+  IN_PROCESS_DD
+  WON
+  LOST
+}
+
+enum FundingStage {
+  IDEA
+  PRE_SEED
+  SEED
+  SERIES_A
+  SERIES_B_PLUS
+  GROWTH
+  ANY
+}
+
+enum FundingTargetStage {
+  PRE_SEED
+  SEED
+  SERIES_A
+}
+
+enum FundingReasonLost {
+  NO_FIT
+  NOT_NOW
+  NO_RESPONSE
+  REJECTED
+  OTHER
+}
+
+enum FundingEmailStyle {
+  SHORT
+  MEDIUM
+  TECHNICAL
+  GRANT
+}
+
 model Lead {
   id                       String         @id @default(cuid())
   companyName              String
@@ -86,4 +142,74 @@ model EmailDraft {
   createdAt DateTime   @default(now())
 
   @@index([leadId])
+}
+
+model FundingLead {
+  id                 String              @id @default(cuid())
+  name               String
+  fundType           FundingFundType
+  category           String?
+  primaryContactName String?
+  primaryContactRole String?
+  contactEmail       String?
+  linkedinUrl        String?
+  websiteUrl         String?
+  stageFocus         FundingStage[]      @default([])
+  targetStage        FundingTargetStage  @default(PRE_SEED)
+  ticketMin          Int?
+  ticketMax          Int?
+  currency           String              @default("EUR")
+  typicalInstrument  String?
+  grantDeadline      DateTime?
+  grantRequirements  String?
+  thesisTags         String[]            @default([])
+  industryFocus      String[]            @default([])
+  geoFocus           String[]            @default([])
+  warmIntroPossible  Boolean             @default(false)
+  introPath          String?
+  stageMatch         Int                 @default(0)
+  thesisMatch        Int                 @default(0)
+  geoMatch           Int                 @default(0)
+  ticketMatch        Int                 @default(0)
+  fitScore           Int                 @default(0)
+  priority           Int                 @default(1)
+  fitCluster         ClusterFit          @default(LOW)
+  fitClusterOverride ClusterFit?
+  status             FundingStatus       @default(NEW)
+  firstContactedAt   DateTime?
+  lastContactedAt    DateTime?
+  nextFollowUpAt     DateTime?
+  cadenceStep        Int?
+  outcomeNotes       String?
+  reasonLost         FundingReasonLost?
+  objections         String?
+  nextSteps          String?
+  attachments        String[]            @default([])
+  owner              String?
+  sourceText         String?
+  sourceUrl          String?
+  lastVerifiedAt     DateTime?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  emailDrafts        FundingEmailDraft[]
+
+  @@index([fundType])
+  @@index([status])
+  @@index([priority])
+  @@index([fitScore])
+  @@index([nextFollowUpAt])
+}
+
+model FundingEmailDraft {
+  id            String            @id @default(cuid())
+  fundingLeadId String
+  fundingLead   FundingLead       @relation(fields: [fundingLeadId], references: [id], onDelete: Cascade)
+  style         FundingEmailStyle
+  subject       String
+  body          String
+  createdAt     DateTime          @default(now())
+
+  @@index([fundingLeadId])
 }

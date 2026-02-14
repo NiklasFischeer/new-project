@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, KanbanSquare, Settings } from "lucide-react";
+import { BarChart3, Building2, CircleDollarSign, KanbanSquare, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/leads", label: "Leads", icon: Building2 },
+  { href: "/funding", label: "Funding", icon: CircleDollarSign },
+  { href: "/funding-outreach", label: "Funding Outreach", icon: KanbanSquare },
   { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -22,7 +24,7 @@ export function Sidebar() {
       </div>
       <nav className="flex flex-1 flex-col gap-1">
         {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link
