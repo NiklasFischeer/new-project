@@ -153,73 +153,85 @@ export function FundingDetailDrawer({ open, onOpenChange, lead, onLeadUpdated, o
     const leadId = localLead.id;
 
     setWorking(true);
-    const response = await fetch(`/api/funding-outreach/${leadId}`, {
-      method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    setWorking(false);
+    try {
+      const response = await fetch(`/api/funding-outreach/${leadId}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) return;
-    const data = (await response.json()) as { lead: FundingLeadWithDrafts };
-    setLocalLead(data.lead);
-    setStageFocusText(data.lead.stageFocus.join(", "));
-    setThesisTagsText(data.lead.thesisTags.join(", "));
-    setIndustryFocusText(data.lead.industryFocus.join(", "));
-    setGeoFocusText(data.lead.geoFocus.join(", "));
-    setAttachmentsText(data.lead.attachments.join(", "));
-    onLeadUpdated(data.lead);
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errorData.error ?? "Funding Lead konnte nicht gespeichert werden.");
+      }
+
+      const data = (await response.json()) as { lead: FundingLeadWithDrafts };
+      setLocalLead(data.lead);
+      setStageFocusText(data.lead.stageFocus.join(", "));
+      setThesisTagsText(data.lead.thesisTags.join(", "));
+      setIndustryFocusText(data.lead.industryFocus.join(", "));
+      setGeoFocusText(data.lead.geoFocus.join(", "));
+      setAttachmentsText(data.lead.attachments.join(", "));
+      onLeadUpdated(data.lead);
+      return data.lead;
+    } finally {
+      setWorking(false);
+    }
   }
 
   async function onSave() {
     if (!localLead) return;
-
-    await patchLead({
-      name: localLead.name,
-      fundType: localLead.fundType,
-      category: localLead.category,
-      primaryContactName: localLead.primaryContactName,
-      primaryContactRole: localLead.primaryContactRole,
-      contactEmail: localLead.contactEmail,
-      linkedinUrl: localLead.linkedinUrl,
-      websiteUrl: localLead.websiteUrl,
-      stageFocus: toStageList(stageFocusText),
-      targetStage: localLead.targetStage,
-      ticketMin: localLead.ticketMin,
-      ticketMax: localLead.ticketMax,
-      currency: localLead.currency,
-      typicalInstrument: localLead.typicalInstrument,
-      grantDeadline: localLead.grantDeadline,
-      grantRequirements: localLead.grantRequirements,
-      thesisTags: toList(thesisTagsText),
-      industryFocus: toList(industryFocusText),
-      geoFocus: toList(geoFocusText),
-      warmIntroPossible: localLead.warmIntroPossible,
-      introPath: localLead.introPath,
-      stageMatch: localLead.stageMatch,
-      thesisMatch: localLead.thesisMatch,
-      geoMatch: localLead.geoMatch,
-      ticketMatch: localLead.ticketMatch,
-      fitClusterOverride: localLead.fitClusterOverride,
-      status: localLead.status,
-      firstContactedAt: localLead.firstContactedAt,
-      lastContactedAt: localLead.lastContactedAt,
-      nextFollowUpAt: localLead.nextFollowUpAt,
-      cadenceStep: localLead.cadenceStep,
-      outcomeNotes: localLead.outcomeNotes,
-      reasonLost: localLead.reasonLost,
-      objections: localLead.objections,
-      nextSteps: localLead.nextSteps,
-      attachments: toList(attachmentsText),
-      owner: localLead.owner,
-      sourceText: localLead.sourceText,
-      sourceUrl: localLead.sourceUrl,
-      lastVerifiedAt: localLead.lastVerifiedAt,
-      notes: localLead.notes,
-    });
-    onToast?.("success", "Funding Lead gespeichert.");
+    try {
+      await patchLead({
+        name: localLead.name,
+        fundType: localLead.fundType,
+        category: localLead.category,
+        primaryContactName: localLead.primaryContactName,
+        primaryContactRole: localLead.primaryContactRole,
+        contactEmail: localLead.contactEmail,
+        linkedinUrl: localLead.linkedinUrl,
+        websiteUrl: localLead.websiteUrl,
+        stageFocus: toStageList(stageFocusText),
+        targetStage: localLead.targetStage,
+        ticketMin: localLead.ticketMin,
+        ticketMax: localLead.ticketMax,
+        currency: localLead.currency,
+        typicalInstrument: localLead.typicalInstrument,
+        grantDeadline: localLead.grantDeadline,
+        grantRequirements: localLead.grantRequirements,
+        thesisTags: toList(thesisTagsText),
+        industryFocus: toList(industryFocusText),
+        geoFocus: toList(geoFocusText),
+        warmIntroPossible: localLead.warmIntroPossible,
+        introPath: localLead.introPath,
+        stageMatch: localLead.stageMatch,
+        thesisMatch: localLead.thesisMatch,
+        geoMatch: localLead.geoMatch,
+        ticketMatch: localLead.ticketMatch,
+        fitClusterOverride: localLead.fitClusterOverride,
+        status: localLead.status,
+        firstContactedAt: localLead.firstContactedAt,
+        lastContactedAt: localLead.lastContactedAt,
+        nextFollowUpAt: localLead.nextFollowUpAt,
+        cadenceStep: localLead.cadenceStep,
+        outcomeNotes: localLead.outcomeNotes,
+        reasonLost: localLead.reasonLost,
+        objections: localLead.objections,
+        nextSteps: localLead.nextSteps,
+        attachments: toList(attachmentsText),
+        owner: localLead.owner,
+        sourceText: localLead.sourceText,
+        sourceUrl: localLead.sourceUrl,
+        lastVerifiedAt: localLead.lastVerifiedAt,
+        notes: localLead.notes,
+      });
+      onToast?.("success", "Funding Lead gespeichert.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Speichern fehlgeschlagen.";
+      onToast?.("error", message);
+    }
   }
 
   async function generateEmail() {
@@ -308,7 +320,7 @@ export function FundingDetailDrawer({ open, onOpenChange, lead, onLeadUpdated, o
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Primary Contact</Label>
+              <Label>Kontakt (Primary Contact)</Label>
               <Input
                 value={localLead.primaryContactName ?? ""}
                 onChange={(event) =>
@@ -716,8 +728,8 @@ export function FundingDetailDrawer({ open, onOpenChange, lead, onLeadUpdated, o
           </div>
         </section>
 
-        <div className="sticky bottom-0 z-20 mt-4 flex justify-end border-t border-border bg-background/95 pt-4">
-          <Button onClick={onSave} disabled={working}>
+        <div className="sticky bottom-0 z-20 mt-4 flex justify-end border-t border-border bg-background pt-4">
+          <Button onClick={onSave} disabled={working} className="bg-primary text-primary-foreground opacity-100 hover:brightness-95">
             Änderungen speichern
           </Button>
         </div>
