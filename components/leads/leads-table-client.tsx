@@ -16,6 +16,7 @@ import { followUpLabel, formatDate } from "@/lib/date";
 import { CustomFieldDefinitionRecord, LeadWithDrafts } from "@/lib/types";
 import { ClusterBadge } from "./cluster-badge";
 import { LeadDetailDrawer } from "./lead-detail-drawer";
+import { LeadsPipelineBoard } from "./leads-pipeline-board";
 import { NewLeadDialog } from "./new-lead-dialog";
 import { PriorityBadge } from "./priority-badge";
 
@@ -103,6 +104,7 @@ export function LeadsTableClient({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"TABLE" | "PIPELINE">("TABLE");
 
   const debouncedSearch = useDebouncedValue(search, 250);
 
@@ -327,6 +329,11 @@ export function LeadsTableClient({
     deleteLeadMutation.mutate(id);
   }
 
+  function moveLeadStatus(id: string, status: PipelineStatus) {
+    updateLeadField(id, "status", status);
+    patchLead(id, { status });
+  }
+
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -335,6 +342,12 @@ export function LeadsTableClient({
           <p className="text-sm text-muted-foreground">Smart outreach database with inline edits and fit scoring.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant={viewMode === "TABLE" ? "default" : "outline"} onClick={() => setViewMode("TABLE")}>
+            Liste
+          </Button>
+          <Button variant={viewMode === "PIPELINE" ? "default" : "outline"} onClick={() => setViewMode("PIPELINE")}>
+            Pipeline
+          </Button>
           <Button variant="outline" asChild>
             <Link href={`/api/leads/export${exportParams ? `?${exportParams}` : ""}`}>Export filtered CSV</Link>
           </Button>
@@ -373,7 +386,7 @@ export function LeadsTableClient({
           description="Adjust filters or add a new lead to kick off outreach."
           action={<Button onClick={() => setCreateOpen(true)}>Create lead</Button>}
         />
-      ) : (
+      ) : viewMode === "TABLE" ? (
         <div className="rounded-lg border border-border bg-card/80">
           <Table>
             <TableHeader>
@@ -503,6 +516,12 @@ export function LeadsTableClient({
             </TableBody>
           </Table>
         </div>
+      ) : (
+        <LeadsPipelineBoard
+          leads={filteredLeads}
+          onMoveStatus={moveLeadStatus}
+          onOpenLead={(id) => setSelectedLeadId(id)}
+        />
       )}
 
       <div className="mt-4 rounded-lg border border-border bg-card/70 p-3 text-sm text-muted-foreground">

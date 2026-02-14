@@ -10,7 +10,6 @@ const navItems = [
   { href: "/leads", label: "Leads", icon: Building2 },
   { href: "/funding", label: "Funding", icon: CircleDollarSign },
   { href: "/funding-outreach", label: "Funding Outreach", icon: KanbanSquare },
-  { href: "/pipeline", label: "Pipeline", icon: KanbanSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

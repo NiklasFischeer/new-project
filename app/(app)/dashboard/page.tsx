@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { followUpLabel, formatDate } from "@/lib/date";
-import { pipelineLabels } from "@/lib/constants";
+import { fundingFundTypeLabels, fundingStatusLabels, pipelineLabels } from "@/lib/constants";
 import { getDashboardData } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
@@ -13,17 +13,20 @@ export default async function DashboardPage() {
   const data = await getDashboardData();
 
   const pipelineSummary = Object.fromEntries(data.pipelineCounts.map((row) => [row.status, row._count.status]));
+  const fundingPipelineSummary = Object.fromEntries(
+    data.fundingPipelineCounts.map((row) => [row.status, row._count.status]),
+  );
 
   return (
     <div className="grid gap-6">
       <div>
         <h1 className="font-display text-2xl font-semibold">Dashboard</h1>
         <p className="text-sm text-muted-foreground">
-          Focus this week on high-fit leads and pipeline momentum for federated learning pilots.
+          Fokus diese Woche: Customer Leads + Funding Outreach für schnellere Pilot- und Fundraising-Momentum.
         </p>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Total leads</CardDescription>
@@ -51,6 +54,22 @@ export default async function DashboardPage() {
             <CardTitle className="text-3xl">{data.staleLeads}</CardTitle>
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground">No touchpoint in 21+ days or never contacted.</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Funding targets</CardDescription>
+            <CardTitle className="text-3xl">{data.fundingCount}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">VCs, Grants, Accelerators, Angels und CVCs.</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Open funding pipeline</CardDescription>
+            <CardTitle className="text-3xl">{data.openFundingPipeline}</CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-muted-foreground">
+            Follow-ups diese Woche: {data.fundingFollowUpThisWeek.length} · Stale: {data.staleFundingLeads}
+          </CardContent>
         </Card>
       </section>
 
@@ -117,6 +136,46 @@ export default async function DashboardPage() {
       <section>
         <Card>
           <CardHeader>
+            <CardTitle>Funding Outreach Highlights</CardTitle>
+            <CardDescription>Priorisierte Investor- und Förderziele mit nächstem Schritt.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {data.topFundingLeads.length === 0 ? (
+              <EmptyState
+                title="Noch keine Funding Leads"
+                description="Lege Funding Targets an und priorisiere sie per Fit Scoring."
+                action={
+                  <Button asChild>
+                    <Link href="/funding-outreach">Funding Lead hinzufügen</Link>
+                  </Button>
+                }
+              />
+            ) : (
+              data.topFundingLeads.map((lead) => (
+                <div key={lead.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/80 p-3">
+                  <div>
+                    <p className="font-medium">{lead.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {fundingFundTypeLabels[lead.fundType]} · {lead.primaryContactName || "Kein Kontakt"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={lead.priority >= 4 ? "success" : lead.priority === 3 ? "warning" : "secondary"}>
+                      Priority {lead.priority}/5
+                    </Badge>
+                    <Badge variant="outline">Fit {lead.fitScore}/10</Badge>
+                    {lead.warmIntroPossible ? <Badge variant="success">Warm Intro</Badge> : null}
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
             <CardTitle>Pipeline status snapshot</CardTitle>
             <CardDescription>Quick view of stage distribution.</CardDescription>
           </CardHeader>
@@ -126,6 +185,42 @@ export default async function DashboardPage() {
                 {label}: {pipelineSummary[status] ?? 0}
               </Badge>
             ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Funding pipeline snapshot</CardTitle>
+            <CardDescription>Dealflow-Verteilung nach Funding-Stages.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {Object.entries(fundingStatusLabels).map(([status, label]) => (
+              <Badge key={status} variant="outline">
+                {label}: {fundingPipelineSummary[status] ?? 0}
+              </Badge>
+            ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Funding follow-ups this week</CardTitle>
+            <CardDescription>Time-sensitive Liste für Fundraising-Fortschritt.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {data.fundingFollowUpThisWeek.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Keine Funding Follow-ups diese Woche.</p>
+            ) : (
+              data.fundingFollowUpThisWeek.map((lead) => (
+                <div key={lead.id} className="rounded-md border border-border/80 p-3">
+                  <p className="font-medium">{lead.name}</p>
+                  <p className="text-xs text-muted-foreground">{fundingStatusLabels[lead.status]}</p>
+                  <p className="text-xs text-muted-foreground">{formatDate(lead.nextFollowUpAt)}</p>
+                  <p className="text-xs text-muted-foreground">{followUpLabel(lead.nextFollowUpAt)}</p>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </section>

@@ -174,7 +174,16 @@ export async function getDashboardData() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-  const [counts, topLeads, followUpThisWeek, pipelineCounts] = await Promise.all([
+  const [
+    counts,
+    topLeads,
+    followUpThisWeek,
+    pipelineCounts,
+    fundingCount,
+    topFundingLeads,
+    fundingFollowUpThisWeek,
+    fundingPipelineCounts,
+  ] = await Promise.all([
     prisma.lead.count(),
     prisma.lead.findMany({
       orderBy: [{ priorityScore: "desc" }, { coopLikelihood: "desc" }],
@@ -193,6 +202,29 @@ export async function getDashboardData() {
       take: 12,
     }),
     prisma.lead.groupBy({
+      by: ["status"],
+      _count: {
+        status: true,
+      },
+    }),
+    prisma.fundingLead.count(),
+    prisma.fundingLead.findMany({
+      orderBy: [{ priority: "desc" }, { fitScore: "desc" }, { nextFollowUpAt: "asc" }],
+      take: 6,
+    }),
+    prisma.fundingLead.findMany({
+      where: {
+        nextFollowUpAt: {
+          gte: weekStart,
+          lte: weekEnd,
+        },
+      },
+      orderBy: {
+        nextFollowUpAt: "asc",
+      },
+      take: 12,
+    }),
+    prisma.fundingLead.groupBy({
       by: ["status"],
       _count: {
         status: true,
@@ -220,6 +252,26 @@ export async function getDashboardData() {
     },
   });
 
+  const openFundingPipeline = fundingPipelineCounts
+    .filter((row) => row.status !== "WON" && row.status !== "LOST")
+    .reduce((acc, row) => acc + row._count.status, 0);
+
+  const staleFundingLeads = await prisma.fundingLead.count({
+    where: {
+      OR: [
+        { lastContactedAt: null },
+        {
+          lastContactedAt: {
+            lte: addDays(now, -21),
+          },
+        },
+      ],
+      status: {
+        notIn: ["WON", "LOST"],
+      },
+    },
+  });
+
   return {
     counts,
     openPipeline,
@@ -227,5 +279,11 @@ export async function getDashboardData() {
     topLeads,
     followUpThisWeek,
     pipelineCounts,
+    fundingCount,
+    openFundingPipeline,
+    staleFundingLeads,
+    topFundingLeads,
+    fundingFollowUpThisWeek,
+    fundingPipelineCounts,
   };
 }
