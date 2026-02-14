@@ -485,12 +485,20 @@ const fundingLeads: SeedFundingLead[] = [
 ];
 
 async function main() {
+  const seedLeadsEnabled = process.env.SEED_LEADS === "true";
+  const seedFundingEnabled = process.env.SEED_FUNDING === "true";
+
+  if (!seedLeadsEnabled && !seedFundingEnabled) {
+    console.info("Seed skipped: set SEED_LEADS=true and/or SEED_FUNDING=true to seed demo data.");
+    return;
+  }
+
   const [existingLeadCount, existingFundingCount] = await Promise.all([
     prisma.lead.count(),
     prisma.fundingLead.count(),
   ]);
 
-  if (existingLeadCount === 0) {
+  if (seedLeadsEnabled && existingLeadCount === 0) {
     await prisma.customFieldDefinition.upsert({
       where: { name: "Data Owner" },
       update: {},
@@ -546,11 +554,13 @@ async function main() {
     }
 
     console.info(`Seeded ${leads.length} leads.`);
-  } else {
+  } else if (seedLeadsEnabled) {
     console.info("Lead seed skipped: lead table already contains data.");
+  } else {
+    console.info("Lead seed skipped: SEED_LEADS=true not set.");
   }
 
-  if (existingFundingCount === 0) {
+  if (seedFundingEnabled && existingFundingCount === 0) {
     for (const fundingLead of fundingLeads) {
       const fitScore = calculateFundingFitScore(fundingLead);
       const priority = calculateFundingPriority(fitScore);
@@ -568,8 +578,10 @@ async function main() {
     }
 
     console.info(`Seeded ${fundingLeads.length} funding leads.`);
-  } else {
+  } else if (seedFundingEnabled) {
     console.info("Funding seed skipped: funding lead table already contains data.");
+  } else {
+    console.info("Funding seed skipped: SEED_FUNDING=true not set.");
   }
 }
 
